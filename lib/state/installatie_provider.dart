@@ -9,9 +9,11 @@ import '../models/verdeler.dart';
 import '../models/enums.dart';
 import '../models/resultaten.dart';
 import '../berekeningen/elektro_berekeningen.dart';
+import '../models/opgeslagen_netwerk.dart';
 
 class InstallatieProvider extends ChangeNotifier {
   static const _saveKey = 'installatie_data';
+  static const _netwerkenKey = 'opgeslagen_netwerken';
   final _uuid = const Uuid();
 
   // --- Invoergegevens ---
@@ -28,6 +30,10 @@ class InstallatieProvider extends ChangeNotifier {
   // --- Resultaten ---
   AnalyseResultaten? resultaten;
   bool isBerekend = false;
+
+  // --- Huidig opgeslagen netwerk ---
+  String? huidigNetwerkId;
+  String? huidigNetwerkNaam;
 
   InstallatieProvider() {
     _laadVanOpslag();
@@ -331,6 +337,124 @@ class InstallatieProvider extends ChangeNotifier {
       if (b.verdederId == null) return b.copyWith(verdederId: defaultId);
       return b;
     }).toList();
+  }
+
+  // -------- Opgeslagen netwerken --------
+
+  Map<String, dynamic> _huidigDataSnapshot() => {
+        'netspanning': netspanning,
+        'frequentie': frequentie,
+        'cosFi': cosFi,
+        'actiefScenario': actiefScenario.index,
+        'verdelaars': verdelaars.map((v) => v.toJson()).toList(),
+        'bronnen': bronnen.map((b) => b.toJson()).toList(),
+        'beveiligingen': beveiligingen.map((b) => b.toJson()).toList(),
+        'belasting': belasting.toJson(),
+      };
+
+  Future<List<OpgeslagenNetwerk>> getOpgeslagenNetwerken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_netwerkenKey);
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      final netwerken = list
+          .map((e) => OpgeslagenNetwerk.fromJson(e as Map<String, dynamic>))
+          .toList();
+      netwerken.sort((a, b) => b.opgeslagenOp.compareTo(a.opgeslagenOp));
+      return netwerken;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> slaNetwerkOp(String naam, {String? bestaandId}) async {
+    try {
+      final netwerken = await getOpgeslagenNetwerken();
+      final id = bestaandId ?? _uuid.v4();
+      final netwerk = OpgeslagenNetwerk(
+        id: id,
+        naam: naam,
+        opgeslagenOp: DateTime.now(),
+        data: _huidigDataSnapshot(),
+      );
+      final updated = [netwerk, ...netwerken.where((n) => n.id != id)];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _netwerkenKey, jsonEncode(updated.map((n) => n.toJson()).toList()));
+      huidigNetwerkId = id;
+      huidigNetwerkNaam = naam;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> laadNetwerk(OpgeslagenNetwerk netwerk) async {
+    try {
+      final data = netwerk.data;
+      netspanning = (data['netspanning'] as num?)?.toDouble() ?? 400;
+      frequentie = (data['frequentie'] as num?)?.toDouble() ?? 50;
+      cosFi = (data['cosFi'] as num?)?.toDouble() ?? 0.85;
+      actiefScenario =
+          BedrijfsModus.values[data['actiefScenario'] as int? ?? 0];
+      verdelaars = (data['verdelaars'] as List<dynamic>?)
+              ?.map((v) => Verdeler.fromJson(v as Map<String, dynamic>))
+              .toList() ??
+          [];
+      bronnen = (data['bronnen'] as List<dynamic>?)
+              ?.map((b) => EnergiBron.fromJson(b as Map<String, dynamic>))
+              .toList() ??
+          [];
+      beveiligingen = (data['beveiligingen'] as List<dynamic>?)
+              ?.map((b) => Beveiliging.fromJson(b as Map<String, dynamic>))
+              .toList() ??
+          [];
+      belasting = data['belasting'] != null
+          ? Belasting.fromJson(data['belasting'] as Map<String, dynamic>)
+          : Belasting();
+      _migreerBronnenZonderVerdeler();
+      huidigNetwerkId = netwerk.id;
+      huidigNetwerkNaam = netwerk.naam;
+      resultaten = null;
+      isBerekend = false;
+      _slaOp();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> verwijderOpgeslagenNetwerk(String id) async {
+    try {
+      final netwerken = await getOpgeslagenNetwerken();
+      final updated = netwerken.where((n) => n.id != id).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _netwerkenKey, jsonEncode(updated.map((n) => n.toJson()).toList()));
+      if (huidigNetwerkId == id) {
+        huidigNetwerkId = null;
+        huidigNetwerkNaam = null;
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> hernoemNetwerk(String id, String nieuweNaam) async {
+    try {
+      final netwerken = await getOpgeslagenNetwerken();
+      final updated = netwerken.map((n) {
+        if (n.id == id) {
+          return OpgeslagenNetwerk(
+              id: n.id,
+              naam: nieuweNaam,
+              opgeslagenOp: n.opgeslagenOp,
+              data: n.data);
+        }
+        return n;
+      }).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _netwerkenKey, jsonEncode(updated.map((n) => n.toJson()).toList()));
+      if (huidigNetwerkId == id) huidigNetwerkNaam = nieuweNaam;
+      notifyListeners();
+    } catch (_) {}
   }
 
   void reset() {

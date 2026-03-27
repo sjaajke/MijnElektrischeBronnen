@@ -63,6 +63,26 @@ class BeveiligingResultaat {
   });
 }
 
+class BatterijAutonomie {
+  final String bronId;
+  final String bronNaam;
+  final double capaciteitKwh;
+  final double? autonomieZomerUur;  // null als capaciteit niet opgegeven
+  final double? autonomieWinterUur;
+  final double? oplaadtijdZomerUur; // null als geen PV in scenario
+  final double? oplaadtijdWinterUur;
+
+  const BatterijAutonomie({
+    required this.bronId,
+    required this.bronNaam,
+    required this.capaciteitKwh,
+    this.autonomieZomerUur,
+    this.autonomieWinterUur,
+    this.oplaadtijdZomerUur,
+    this.oplaadtijdWinterUur,
+  });
+}
+
 class FoutMelding {
   final String id;
   final FoutNiveau niveau;
@@ -91,6 +111,7 @@ class ScenarioResultaat {
   final List<BeveiligingResultaat> beveiligingResultaten;
   final List<VerdelerResultaat> verdelerResultaten;
   final List<FoutMelding> fouten;
+  final List<BatterijAutonomie> batterijAutonomies;
 
   const ScenarioResultaat({
     required this.modus,
@@ -104,6 +125,7 @@ class ScenarioResultaat {
     required this.beveiligingResultaten,
     required this.verdelerResultaten,
     required this.fouten,
+    this.batterijAutonomies = const [],
   });
 
   double get belastingsgraad =>

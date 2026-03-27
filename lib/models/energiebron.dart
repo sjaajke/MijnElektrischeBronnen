@@ -20,6 +20,13 @@ class EnergiBron {
   // PV / Batterij specifiek
   double kortsluitFactor; // bijv. 1.1 – 1.25
 
+  // Batterij specifiek
+  double capaciteitKwh;       // opgeslagen energie (0 = niet opgegeven)
+  double seizoensfactorWinter; // beschikbare capaciteit in winter (bijv. 0.85)
+
+  // PV specifiek
+  double pvWinterFactor; // winter productie tov zomer (bijv. 0.25 in NL)
+
   // Netwerktopologie
   String? verdederId; // verwijst naar Verdeler.id
 
@@ -33,6 +40,9 @@ class EnergiBron {
     this.kortsluitspanning = 4.0,
     this.subtransientReactantie = 15.0,
     this.kortsluitFactor = 1.2,
+    this.capaciteitKwh = 0.0,
+    this.seizoensfactorWinter = 0.85,
+    this.pvWinterFactor = 0.25,
     this.verdederId,
   });
 
@@ -67,6 +77,9 @@ class EnergiBron {
     double? kortsluitspanning,
     double? subtransientReactantie,
     double? kortsluitFactor,
+    double? capaciteitKwh,
+    double? seizoensfactorWinter,
+    double? pvWinterFactor,
     String? verdederId,
   }) {
     return EnergiBron(
@@ -80,6 +93,9 @@ class EnergiBron {
       subtransientReactantie:
           subtransientReactantie ?? this.subtransientReactantie,
       kortsluitFactor: kortsluitFactor ?? this.kortsluitFactor,
+      capaciteitKwh: capaciteitKwh ?? this.capaciteitKwh,
+      seizoensfactorWinter: seizoensfactorWinter ?? this.seizoensfactorWinter,
+      pvWinterFactor: pvWinterFactor ?? this.pvWinterFactor,
       verdederId: verdederId ?? this.verdederId,
     );
   }
@@ -94,6 +110,9 @@ class EnergiBron {
         'kortsluitspanning': kortsluitspanning,
         'subtransientReactantie': subtransientReactantie,
         'kortsluitFactor': kortsluitFactor,
+        'capaciteitKwh': capaciteitKwh,
+        'seizoensfactorWinter': seizoensfactorWinter,
+        'pvWinterFactor': pvWinterFactor,
         'verdederId': verdederId,
       };
 
@@ -108,8 +127,11 @@ class EnergiBron {
             (json['kortsluitspanning'] as num?)?.toDouble() ?? 4.0,
         subtransientReactantie:
             (json['subtransientReactantie'] as num?)?.toDouble() ?? 15.0,
-        kortsluitFactor:
-            (json['kortsluitFactor'] as num?)?.toDouble() ?? 1.2,
+        kortsluitFactor: (json['kortsluitFactor'] as num?)?.toDouble() ?? 1.2,
+        capaciteitKwh: (json['capaciteitKwh'] as num?)?.toDouble() ?? 0.0,
+        seizoensfactorWinter:
+            (json['seizoensfactorWinter'] as num?)?.toDouble() ?? 0.85,
+        pvWinterFactor: (json['pvWinterFactor'] as num?)?.toDouble() ?? 0.25,
         verdederId: json['verdederId'] as String?,
       );
 }

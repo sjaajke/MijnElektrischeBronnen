@@ -24,7 +24,7 @@ class PdfRapport {
         bold: fontBold,
         italic: fontItalic,
       ),
-      title: 'MijnBronnen Rapport',
+      title: 'MijnElektrischeBronnen Rapport',
     );
 
     // --- Pagina 1: Samenvatting ---
@@ -80,7 +80,7 @@ class PdfRapport {
 
     final bytes = await pdf.save();
     final now = DateTime.now();
-    final bestandsnaam = 'mijnbronnen_rapport_${_datumString(now)}.pdf';
+    final bestandsnaam = 'mijnelektrischebronnen_rapport_${_datumString(now)}.pdf';
 
     final savePath = await FilePicker.platform.saveFile(
       dialogTitle: 'Rapport opslaan',
@@ -112,7 +112,7 @@ class PdfRapport {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'MijnBronnen - Elektrische Installatie Rapport',
+              'MijnElektrischeBronnen - Elektrische Installatie Rapport',
               style: pw.TextStyle(
                 fontSize: 13,
                 fontWeight: pw.FontWeight.bold,
@@ -930,6 +930,8 @@ class PdfRapport {
         return 'Netbedrijf';
       case BedrijfsModus.eilandbedrijf:
         return 'Eilandbedrijf';
+      case BedrijfsModus.eilandGeneratorBatterij:
+        return 'Eilandbedrijf (Gen+Bat)';
       case BedrijfsModus.hybride:
         return 'Hybride';
       case BedrijfsModus.noodbedrijf:

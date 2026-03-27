@@ -169,6 +169,9 @@ class _BronFormulierState extends State<_BronFormulier> {
   late TextEditingController _uk;
   late TextEditingController _xd;
   late TextEditingController _ksFactor;
+  late TextEditingController _capaciteit;
+  late TextEditingController _pvWinter;
+  late double _seizoensfactorWinter;
 
   @override
   void initState() {
@@ -180,6 +183,11 @@ class _BronFormulierState extends State<_BronFormulier> {
     _uk = TextEditingController(text: b.kortsluitspanning.toStringAsFixed(1));
     _xd = TextEditingController(text: b.subtransientReactantie.toStringAsFixed(1));
     _ksFactor = TextEditingController(text: b.kortsluitFactor.toStringAsFixed(2));
+    _capaciteit = TextEditingController(
+        text: b.capaciteitKwh > 0 ? b.capaciteitKwh.toStringAsFixed(0) : '');
+    _pvWinter = TextEditingController(
+        text: (b.pvWinterFactor * 100).toStringAsFixed(0));
+    _seizoensfactorWinter = b.seizoensfactorWinter;
   }
 
   @override
@@ -190,6 +198,8 @@ class _BronFormulierState extends State<_BronFormulier> {
     _uk.dispose();
     _xd.dispose();
     _ksFactor.dispose();
+    _capaciteit.dispose();
+    _pvWinter.dispose();
     super.dispose();
   }
 
@@ -201,6 +211,9 @@ class _BronFormulierState extends State<_BronFormulier> {
       kortsluitspanning: double.tryParse(_uk.text) ?? widget.bron.kortsluitspanning,
       subtransientReactantie: double.tryParse(_xd.text) ?? widget.bron.subtransientReactantie,
       kortsluitFactor: double.tryParse(_ksFactor.text) ?? widget.bron.kortsluitFactor,
+      capaciteitKwh: double.tryParse(_capaciteit.text) ?? 0.0,
+      seizoensfactorWinter: _seizoensfactorWinter,
+      pvWinterFactor: (double.tryParse(_pvWinter.text) ?? 25.0) / 100.0,
     ));
   }
 
@@ -273,17 +286,52 @@ class _BronFormulierState extends State<_BronFormulier> {
         // Typespecifieke velden
         if (bron.type == BronType.trafo)
           _veld('Kortsluitspanning uk (%)', _uk,
-              onChanged: (_) => _sla(), isNum: true,
-              hint: 'bijv. 4.0'),
+              onChanged: (_) => _sla(), isNum: true, hint: 'bijv. 4.0'),
         if (bron.type == BronType.generator)
           _veld("Subtransiënt reactantie X''d (%)", _xd,
-              onChanged: (_) => _sla(), isNum: true,
-              hint: 'bijv. 15.0'),
-        if (bron.type == BronType.pv || bron.type == BronType.batterij)
+              onChanged: (_) => _sla(), isNum: true, hint: 'bijv. 15.0'),
+        if (bron.type == BronType.pv || bron.type == BronType.batterij) ...[
           _veld('Kortsluitfactor (× In)', _ksFactor,
-              onChanged: (_) => _sla(), isNum: true,
-              hint: 'bijv. 1.2'),
-
+              onChanged: (_) => _sla(), isNum: true, hint: 'bijv. 1.2'),
+        ],
+        if (bron.type == BronType.batterij) ...[
+          const SizedBox(height: 8),
+          _veld('Capaciteit (kWh)', _capaciteit,
+              onChanged: (_) => _sla(),
+              isNum: true,
+              hint: 'leeg = niet opgegeven'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text('Winterfactor capaciteit: ${(_seizoensfactorWinter * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(fontSize: 13)),
+              const Spacer(),
+              Text('${(_seizoensfactorWinter * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+          Slider(
+            value: _seizoensfactorWinter,
+            min: 0.5,
+            max: 1.0,
+            divisions: 10,
+            label: '${(_seizoensfactorWinter * 100).toStringAsFixed(0)}%',
+            onChanged: (v) => setState(() => _seizoensfactorWinter = v),
+            onChangeEnd: (_) => _sla(),
+          ),
+          Text('Beschikbare capaciteit in winter door lage temperatuur (lithium typisch 80–90%)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
+        if (bron.type == BronType.pv) ...[
+          const SizedBox(height: 8),
+          _veld('Winterproductie (% van zomer)', _pvWinter,
+              onChanged: (_) => _sla(), isNum: true, hint: 'bijv. 25'),
+          const SizedBox(height: 4),
+          Text('In Nederland produceert PV in winter ~20–30% van de zomerproductie.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
         const SizedBox(height: 12),
         // Berekende waarden
         Container(

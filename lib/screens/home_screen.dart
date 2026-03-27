@@ -10,6 +10,8 @@ import 'netwerk_screen.dart';
 import 'resultaten_screen.dart';
 import 'fout_analyse_screen.dart';
 import 'instellingen_screen.dart';
+import 'info_screen.dart';
+import 'netwerken_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +37,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        onDestinationSelected: (i) {
+          if (i == 5) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NetwerkenScreen()),
+            );
+          } else {
+            setState(() => _selectedIndex = i);
+          }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -62,6 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon: Icon(Icons.electrical_services),
             label: 'Belasting',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: 'Netwerken',
+          ),
         ],
       ),
     );
@@ -78,8 +94,29 @@ class _DashboardTab extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MijnBronnen'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('MijnElektrischeBronnen'),
+            if (provider.huidigNetwerkNaam != null)
+              Text(
+                provider.huidigNetwerkNaam!,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.primary),
+              ),
+          ],
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Over deze app',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InfoScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.push(
@@ -220,9 +257,11 @@ class _ScenarioSelector extends StatelessWidget {
                               ? 'Net'
                               : m == BedrijfsModus.eilandbedrijf
                                   ? 'Eiland'
-                                  : m == BedrijfsModus.hybride
-                                      ? 'Hybride'
-                                      : 'Nood',
+                                  : m == BedrijfsModus.eilandGeneratorBatterij
+                                      ? 'Eil+Bat'
+                                      : m == BedrijfsModus.hybride
+                                          ? 'Hybride'
+                                          : 'Nood',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ))
@@ -337,7 +376,12 @@ class _BronnenToggleKaart extends StatelessWidget {
             child: Text('Bronnen aan/uit',
                 style: Theme.of(context).textTheme.titleSmall),
           ),
-          ...provider.bronnen.map((bron) => SwitchListTile(
+          ...([...provider.bronnen]
+                ..sort((a, b) {
+                  final t = a.type.index.compareTo(b.type.index);
+                  return t != 0 ? t : a.naam.compareTo(b.naam);
+                }))
+              .map((bron) => SwitchListTile(
                 title: Text(bron.naam),
                 subtitle: Text(
                     '${bron.type.label} • ${bron.nominaalVermogen.toStringAsFixed(0)} kVA'),

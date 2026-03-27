@@ -6,6 +6,138 @@ import '../models/enums.dart';
 import '../services/pdf_rapport.dart';
 import 'fout_analyse_screen.dart';
 
+// ─── Batterij autonomie kaart ─────────────────────────────────────────────────
+
+class _BatterijAutonomieKaart extends StatelessWidget {
+  final List<BatterijAutonomie> autonomies;
+  const _BatterijAutonomieKaart({required this.autonomies});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.battery_charging_full, size: 18),
+              const SizedBox(width: 8),
+              Text('Batterij autonomie',
+                  style: Theme.of(context).textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 12),
+            ...autonomies.map((a) => _AutonomieRij(autonomie: a)),
+            const SizedBox(height: 8),
+            Text(
+              'Autonomie = capaciteit (kWh) ÷ kritische belasting (kW). '
+              'Winter = zomer × seizoensfactor.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AutonomieRij extends StatelessWidget {
+  final BatterijAutonomie autonomie;
+  const _AutonomieRij({required this.autonomie});
+
+  @override
+  Widget build(BuildContext context) {
+    final a = autonomie;
+    final heeftCapaciteit = a.capaciteitKwh > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(a.bronNaam,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          if (!heeftCapaciteit)
+            Text('Geen capaciteit opgegeven',
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic))
+          else
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2),
+                1: FlexColumnWidth(2),
+                2: FlexColumnWidth(2),
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  children: [
+                    _Cel('Capaciteit', '${a.capaciteitKwh.toStringAsFixed(0)} kWh'),
+                    _Cel('Autonomie zomer', _uurTekst(a.autonomieZomerUur),
+                        kleur: _autonomieKleur(context, a.autonomieZomerUur)),
+                    _Cel('Autonomie winter', _uurTekst(a.autonomieWinterUur),
+                        kleur: _autonomieKleur(context, a.autonomieWinterUur)),
+                  ],
+                ),
+                if (a.oplaadtijdZomerUur != null)
+                  TableRow(children: [
+                    const _Cel('', ''),
+                    _Cel('Oplaadtijd zomer', _uurTekst(a.oplaadtijdZomerUur)),
+                    _Cel('Oplaadtijd winter', _uurTekst(a.oplaadtijdWinterUur)),
+                  ]),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _uurTekst(double? uren) {
+    if (uren == null) return '—';
+    if (uren < 1) return '${(uren * 60).toStringAsFixed(0)} min';
+    if (uren >= 100) return '> 99 uur';
+    return '${uren.toStringAsFixed(1)} uur';
+  }
+
+  Color? _autonomieKleur(BuildContext context, double? uren) {
+    if (uren == null) return null;
+    if (uren < 1) return Theme.of(context).colorScheme.error;
+    if (uren < 4) return Colors.orange;
+    return Colors.green;
+  }
+}
+
+class _Cel extends StatelessWidget {
+  final String label;
+  final String waarde;
+  final Color? kleur;
+  const _Cel(this.label, this.waarde, {this.kleur});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text(waarde,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: kleur, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+}
+
 class ResultatenScreen extends StatelessWidget {
   const ResultatenScreen({super.key});
 
@@ -74,6 +206,10 @@ class ResultatenScreen extends StatelessWidget {
           ],
           _BronnenTabel(scenario: huidig),
           const SizedBox(height: 12),
+          if (huidig.batterijAutonomies.isNotEmpty) ...[
+            _BatterijAutonomieKaart(autonomies: huidig.batterijAutonomies),
+            const SizedBox(height: 12),
+          ],
           _SelectiviteitTabel(scenario: huidig),
           const SizedBox(height: 12),
           _FoutSamenvatting(scenario: huidig),

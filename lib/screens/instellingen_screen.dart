@@ -138,7 +138,7 @@ class _InstellingenScreenState extends State<InstellingenScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Over MijnBronnen',
+                  Text('Over MijnElektrischeBronnen',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   const Text('Versie 1.0.0'),

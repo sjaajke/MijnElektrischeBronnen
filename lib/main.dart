@@ -5,18 +5,18 @@ import 'screens/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MijnBronnenApp());
+  runApp(const MijnElektrischeBronnenApp());
 }
 
-class MijnBronnenApp extends StatelessWidget {
-  const MijnBronnenApp({super.key});
+class MijnElektrischeBronnenApp extends StatelessWidget {
+  const MijnElektrischeBronnenApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => InstallatieProvider(),
       child: MaterialApp(
-        title: 'MijnBronnen',
+        title: 'MijnElektrischeBronnen',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(

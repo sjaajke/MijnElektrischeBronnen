@@ -4,6 +4,7 @@ import '../state/installatie_provider.dart';
 import '../models/belasting.dart';
 import '../models/verdeler.dart';
 import '../models/enums.dart';
+import '../widgets/periode_section.dart';
 
 class BelastingScreen extends StatelessWidget {
   const BelastingScreen({super.key});
@@ -27,11 +28,8 @@ class BelastingScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Totaal vermogen
           _TotaalVermogenKaart(belasting: belasting, provider: provider),
           const SizedBox(height: 16),
-
-          // Verdeling per veld
           if (belasting.velden.isNotEmpty) ...[
             Text('Verdeling per veld',
                 style: Theme.of(context).textTheme.titleMedium),
@@ -69,6 +67,8 @@ class BelastingScreen extends StatelessWidget {
   }
 }
 
+// ─── Totaal vermogen kaart ────────────────────────────────────────────────────
+
 class _TotaalVermogenKaart extends StatefulWidget {
   final Belasting belasting;
   final InstallatieProvider provider;
@@ -88,8 +88,8 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
     super.initState();
     _vermogenCtrl = TextEditingController(
         text: widget.belasting.totaalVermogen.toStringAsFixed(0));
-    _cosFiCtrl = TextEditingController(
-        text: widget.belasting.cosFi.toStringAsFixed(2));
+    _cosFiCtrl =
+        TextEditingController(text: widget.belasting.cosFi.toStringAsFixed(2));
   }
 
   @override
@@ -101,8 +101,8 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
 
   void _sla() {
     widget.provider.updateBelasting(Belasting(
-      totaalVermogen:
-          double.tryParse(_vermogenCtrl.text) ?? widget.belasting.totaalVermogen,
+      totaalVermogen: double.tryParse(_vermogenCtrl.text) ??
+          widget.belasting.totaalVermogen,
       cosFi: double.tryParse(_cosFiCtrl.text) ?? widget.belasting.cosFi,
       velden: widget.belasting.velden,
     ));
@@ -138,8 +138,8 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
                       border: OutlineInputBorder(),
                       suffixText: 'kVA',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => _sla(),
                   ),
                 ),
@@ -151,8 +151,8 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
                       labelText: 'cos φ',
                       border: OutlineInputBorder(),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => _sla(),
                   ),
                 ),
@@ -177,8 +177,7 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
                       style: TextStyle(
                           color: overbelast ? Colors.red : Colors.green,
                           fontWeight: FontWeight.bold)),
-                  Text(
-                      'Beschikbaar: ${beschikbaar.toStringAsFixed(0)} kVA',
+                  Text('Beschikbaar: ${beschikbaar.toStringAsFixed(0)} kVA',
                       style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
@@ -190,8 +189,9 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
                       const Icon(Icons.warning, color: Colors.red, size: 16),
                       const SizedBox(width: 6),
                       Text('Overbelasting!',
-                          style:
-                              TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -202,6 +202,8 @@ class _TotaalVermogenKaartState extends State<_TotaalVermogenKaart> {
     );
   }
 }
+
+// ─── Veld kaart ───────────────────────────────────────────────────────────────
 
 class _VeldKaart extends StatefulWidget {
   final BelastingVeld veld;
@@ -220,8 +222,8 @@ class _VeldKaartState extends State<_VeldKaart> {
   void initState() {
     super.initState();
     _naam = TextEditingController(text: widget.veld.naam);
-    _vermogen = TextEditingController(
-        text: widget.veld.vermogen.toStringAsFixed(1));
+    _vermogen =
+        TextEditingController(text: widget.veld.vermogen.toStringAsFixed(1));
   }
 
   @override
@@ -238,13 +240,13 @@ class _VeldKaartState extends State<_VeldKaart> {
     ));
   }
 
+
   @override
   Widget build(BuildContext context) {
     final veld = widget.veld;
     final prioriteitKleur = _prioriteitKleur(veld.prioriteit);
     final verdelaars = widget.provider.verdelaars;
 
-    // Bepaal huidige verdeler-waarde (veilig: valt terug op null als id niet bestaat)
     final huidigVerdederId = verdelaars.any((v) => v.id == veld.verdederId)
         ? veld.verdederId
         : null;
@@ -254,7 +256,9 @@ class _VeldKaartState extends State<_VeldKaart> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Hoofdrij ──
             Row(
               children: [
                 Container(
@@ -303,13 +307,14 @@ class _VeldKaartState extends State<_VeldKaart> {
                             value: p,
                             child: Text(_prioriteitLabel(p),
                                 style: TextStyle(
-                                    color: _prioriteitKleur(p), fontSize: 12)),
+                                    color: _prioriteitKleur(p),
+                                    fontSize: 12)),
                           ))
                       .toList(),
                   onChanged: (p) {
                     if (p != null) {
-                      widget.provider
-                          .updateBelastingVeld(veld.copyWith(prioriteit: p));
+                      widget.provider.updateBelastingVeld(
+                          veld.copyWith(prioriteit: p));
                     }
                   },
                 ),
@@ -320,6 +325,8 @@ class _VeldKaartState extends State<_VeldKaart> {
                 ),
               ],
             ),
+
+            // ── Verdeler koppeling ──
             if (verdelaars.isNotEmpty) ...[
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
@@ -328,17 +335,19 @@ class _VeldKaartState extends State<_VeldKaart> {
                   labelText: 'Verdeler',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  prefixIcon: Icon(Icons.account_tree_outlined, size: 18),
+                  prefixIcon:
+                      Icon(Icons.account_tree_outlined, size: 18),
                 ),
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
                     child: Text('— Niet gekoppeld —'),
                   ),
-                  ...verdelaars.map((Verdeler v) => DropdownMenuItem<String?>(
+                  ...verdelaars.map((Verdeler v) =>
+                      DropdownMenuItem<String?>(
                         value: v.id,
-                        child: Text(
-                            v.naam + (v.isHoofdverdeler ? ' (HV)' : ' (OV)')),
+                        child: Text(v.naam +
+                            (v.isHoofdverdeler ? ' (HV)' : ' (OV)')),
                       )),
                 ],
                 onChanged: (id) {
@@ -350,6 +359,13 @@ class _VeldKaartState extends State<_VeldKaart> {
                 },
               ),
             ],
+
+            // ── Gelijktijdigheid per periode ──
+            const SizedBox(height: 4),
+            PeriodeSection(
+              veld: veld,
+              onChanged: widget.provider.updateBelastingVeld,
+            ),
           ],
         ),
       ),
@@ -379,6 +395,8 @@ class _VeldKaartState extends State<_VeldKaart> {
   }
 }
 
+// ─── Velden samenvatting ──────────────────────────────────────────────────────
+
 class _VeldenSamenvattingKaart extends StatelessWidget {
   final Belasting belasting;
   const _VeldenSamenvattingKaart({required this.belasting});
@@ -395,14 +413,11 @@ class _VeldenSamenvattingKaart extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _SomVeld('Kritisch', '${kritisch.toStringAsFixed(0)} kVA',
-                Colors.red),
-            _SomVeld(
-                'Totaal velden',
-                '${totaalVelden.toStringAsFixed(0)} kVA',
-                Colors.blue),
-            _SomVeld(
-                'Opgegeven totaal',
+            _SomVeld('Kritisch (eff.)',
+                '${kritisch.toStringAsFixed(0)} kVA', Colors.red),
+            _SomVeld('Totaal velden (eff.)',
+                '${totaalVelden.toStringAsFixed(0)} kVA', Colors.blue),
+            _SomVeld('Opgegeven totaal',
                 '${belasting.totaalVermogen.toStringAsFixed(0)} kVA',
                 Colors.grey),
           ],
