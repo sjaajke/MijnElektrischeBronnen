@@ -45,6 +45,12 @@ class ElektroBerekeningen {
         return bronnen
             .where((b) => b.actief && b.type == BronType.generator)
             .toList();
+      case BedrijfsModus.eilandGeneratorBatterij:
+        return bronnen
+            .where((b) =>
+                b.actief &&
+                (b.type == BronType.generator || b.type == BronType.batterij))
+            .toList();
       case BedrijfsModus.hybride:
         return bronnen.where((b) => b.actief).toList();
       case BedrijfsModus.noodbedrijf:
@@ -64,9 +70,8 @@ class ElektroBerekeningen {
     required Belasting belasting,
     required List<Verdeler> verdelaars,
   }) {
-    // Kortsluitstromen
-    final ikMax =
-        _berekenTotaleIkMax(alleBronnen.where((b) => b.actief).toList());
+    // Kortsluitstromen — alleen de bronnen die actief zijn in dit scenario
+    final ikMax = _berekenTotaleIkMax(bronnen);
     final ikMin = _berekenTotaleIkMin(bronnen);
 
     // Vermogen
@@ -117,6 +122,18 @@ class ElektroBerekeningen {
       beschikbaarVermogen: beschikbaarVermogen,
     );
 
+    // Batterij autonomie
+    final batterijAutonomies = _berekenBatterijAutonomies(
+      bronnen: bronnen,
+      belasting: belasting,
+    );
+
+    // Voeg autonomie waarschuwingen toe aan fouten
+    final alleFouten = [
+      ...fouten,
+      ..._autonomieFouten(batterijAutonomies, fouten.length),
+    ];
+
     return ScenarioResultaat(
       modus: modus,
       totaleIkMax: ikMax,
@@ -128,8 +145,119 @@ class ElektroBerekeningen {
       bronResultaten: bronResultaten,
       beveiligingResultaten: beveiligingResultaten,
       verdelerResultaten: verdelerResultaten,
-      fouten: fouten,
+      fouten: alleFouten,
+      batterijAutonomies: batterijAutonomies,
     );
+  }
+
+  // -------- Batterij autonomie --------
+
+  static List<BatterijAutonomie> _berekenBatterijAutonomies({
+    required List<EnergiBron> bronnen,
+    required Belasting belasting,
+  }) {
+    final batterijen =
+        bronnen.where((b) => b.type == BronType.batterij).toList();
+    if (batterijen.isEmpty) return [];
+
+    // Kritische belasting in kW (effectief, inclusief gelijktijdigheid)
+    final kritischKw = belasting.kritischVermogen * belasting.cosFi;
+    // Totale belasting als fallback
+    final totaalKw = belasting.totaalVermogen * belasting.cosFi;
+    final belastingKw = kritischKw > 0 ? kritischKw : totaalKw;
+
+    // Totaal PV vermogen in scenario (voor oplaadtijd)
+    final pvBronnen = bronnen.where((b) => b.type == BronType.pv).toList();
+    final cosFi = belasting.cosFi;
+    final pvVermogenZomerKw =
+        pvBronnen.fold(0.0, (s, b) => s + b.nominaalVermogen * cosFi);
+    final pvVermogenWinterKw = pvBronnen.fold(
+        0.0, (s, b) => s + b.nominaalVermogen * cosFi * b.pvWinterFactor);
+
+    return batterijen.map((bat) {
+      if (bat.capaciteitKwh <= 0) {
+        return BatterijAutonomie(
+          bronId: bat.id,
+          bronNaam: bat.naam,
+          capaciteitKwh: 0,
+        );
+      }
+
+      double? autonomieZomer;
+      double? autonomieWinter;
+      double? oplaadtijdZomer;
+      double? oplaadtijdWinter;
+
+      if (belastingKw > 0) {
+        autonomieZomer = bat.capaciteitKwh / belastingKw;
+        autonomieWinter = bat.capaciteitKwh * bat.seizoensfactorWinter / belastingKw;
+      }
+
+      if (pvVermogenZomerKw > 0) {
+        oplaadtijdZomer = bat.capaciteitKwh / pvVermogenZomerKw;
+        oplaadtijdWinter = pvVermogenWinterKw > 0
+            ? bat.capaciteitKwh / pvVermogenWinterKw
+            : null;
+      }
+
+      return BatterijAutonomie(
+        bronId: bat.id,
+        bronNaam: bat.naam,
+        capaciteitKwh: bat.capaciteitKwh,
+        autonomieZomerUur: autonomieZomer,
+        autonomieWinterUur: autonomieWinter,
+        oplaadtijdZomerUur: oplaadtijdZomer,
+        oplaadtijdWinterUur: oplaadtijdWinter,
+      );
+    }).toList();
+  }
+
+  static List<FoutMelding> _autonomieFouten(
+      List<BatterijAutonomie> autonomies, int startId) {
+    final fouten = <FoutMelding>[];
+    var id = startId;
+    for (final a in autonomies) {
+      if (a.capaciteitKwh <= 0) continue;
+      final zomer = a.autonomieZomerUur;
+      final winter = a.autonomieWinterUur;
+      if (zomer != null && zomer < 1.0) {
+        fouten.add(FoutMelding(
+          id: 'aut_${id++}',
+          niveau: FoutNiveau.kritisch,
+          titel: 'Korte autonomie: ${a.bronNaam}',
+          beschrijving:
+              'Batterijautonomie (zomer) is slechts ${_uurLabel(zomer)} bij de kritische belasting.',
+          aanbeveling:
+              'Vergroot de batterijcapaciteit of verlaag de kritische belasting.',
+        ));
+      } else if (zomer != null && zomer < 4.0) {
+        fouten.add(FoutMelding(
+          id: 'aut_${id++}',
+          niveau: FoutNiveau.waarschuwing,
+          titel: 'Beperkte autonomie: ${a.bronNaam}',
+          beschrijving:
+              'Batterijautonomie (zomer) is ${_uurLabel(zomer)}. Overweeg een grotere capaciteit voor langdurig noodbedrijf.',
+          aanbeveling: 'Richtlijn: minimaal 4 uur voor kritische systemen.',
+        ));
+      }
+      if (winter != null && zomer != null && winter < zomer * 0.75) {
+        fouten.add(FoutMelding(
+          id: 'aut_${id++}',
+          niveau: FoutNiveau.informatief,
+          titel: 'Grote seizoensvariatie: ${a.bronNaam}',
+          beschrijving:
+              'Winter autonomie (${_uurLabel(winter)}) is meer dan 25% lager dan zomer (${_uurLabel(zomer)}) door verminderde batterijcapaciteit bij lage temperatuur.',
+          aanbeveling:
+              'Houd rekening met winterbedrijf bij het dimensioneren.',
+        ));
+      }
+    }
+    return fouten;
+  }
+
+  static String _uurLabel(double uren) {
+    if (uren < 1) return '${(uren * 60).toStringAsFixed(0)} min';
+    return '${uren.toStringAsFixed(1)} uur';
   }
 
   // -------- Verdeler topologie --------
@@ -248,9 +376,7 @@ class ElektroBerekeningen {
 
   static double _berekenTotaleIkMin(List<EnergiBron> bronnen) {
     if (bronnen.isEmpty) return 0;
-    final minIk =
-        bronnen.map((b) => b.kortsluitStroom).reduce((a, b) => a < b ? a : b);
-    return minIk / 1000;
+    return bronnen.fold(0.0, (sum, b) => sum + b.kortsluitStroom) / 1000;
   }
 
   static bool _berekenNMinEen(
@@ -448,7 +574,8 @@ class ElektroBerekeningen {
     }
 
     // --- Generator eilandbedrijf ---
-    if (modus == BedrijfsModus.eilandbedrijf) {
+    if (modus == BedrijfsModus.eilandbedrijf ||
+        modus == BedrijfsModus.eilandGeneratorBatterij) {
       final generatoren =
           bronnen.where((b) => b.type == BronType.generator).toList();
       if (generatoren.isEmpty) {
@@ -609,7 +736,8 @@ class ElektroBerekeningen {
           );
       if (bron != null &&
           bron.type == BronType.generator &&
-          modus == BedrijfsModus.eilandbedrijf) {
+          (modus == BedrijfsModus.eilandbedrijf ||
+           modus == BedrijfsModus.eilandGeneratorBatterij)) {
         final genIk = bron.kortsluitStroom;
         if (genIk < bev.iIWerkelijk) {
           fouten.add(FoutMelding(
