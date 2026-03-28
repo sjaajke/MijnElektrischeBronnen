@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-macos:
-    name: macOS
+    name: macOS DMG
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,20 +20,65 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Import Developer ID certificate
         run: |
-          flutter build macos --release \
-            -- \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM=""
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
-      - name: Upload macOS artifact
+      - name: Build macOS
+        run: flutter build macos --release
+
+      - name: Sign app
+        run: |
+          APP=$(find build/macos/Build/Products/Release -name "*.app" | head -1)
+          codesign --deep --force --verify --verbose \
+            --sign "Developer ID Application" \
+            --options runtime \
+            "$APP"
+
+      - name: Create DMG
+        run: |
+          APP=$(find build/macos/Build/Products/Release -name "*.app" | head -1)
+          APP_NAME=$(basename "$APP" .app)
+          hdiutil create -volname "$APP_NAME" \
+            -srcfolder "$APP" \
+            -ov -format UDZO \
+            "${APP_NAME}.dmg"
+          echo "DMG_PATH=${APP_NAME}.dmg" >> $GITHUB_ENV
+
+      - name: Notariseer DMG
+        run: |
+          echo "$ASC_API_KEY" | base64 --decode > AuthKey.p8
+          xcrun notarytool submit "$DMG_PATH" \
+            --key AuthKey.p8 \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+          rm AuthKey.p8
+        env:
+          ASC_API_KEY: ${{ secrets.ASC_API_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+
+      - name: Staple notarisatie
+        run: xcrun stapler staple "$DMG_PATH"
+
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
-          path: build/macos/Build/Products/Release/*.app
+          name: macos-dmg
+          path: ${{ env.DMG_PATH }}
 
   build-windows:
     name: Windows
