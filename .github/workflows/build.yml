@@ -30,7 +30,7 @@ jobs:
         run: flutter pub get
 
       - name: Build macOS
-        run: flutter build macos --release --no-codesign
+        run: flutter build macos --release
 
       - name: Set version name
         id: version
