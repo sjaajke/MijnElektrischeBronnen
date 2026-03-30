@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the drukAf method from the PdfRapport class, for the Dart programming language.">
+  <title>drukAf method - PdfRapport class - pdf_rapport library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../../static-assets/styles.css?v1">
+  <link rel="icon" href="../../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../../index.html">mijn_bronnen</a></li>
+    <li><a href="../../services_pdf_rapport/">services&#47;pdf_rapport.dart</a></li>
+    <li><a href="../../services_pdf_rapport/PdfRapport-class.html">PdfRapport</a></li>
+    <li class="self-crumb">drukAf static method</li>
+  </ol>
+  <div class="self-name">drukAf</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="services_pdf_rapport&#47;PdfRapport-class-sidebar.html"
+    data-below-sidebar="">
+    <div>
+<h1><span class="kind-method">drukAf</span> static method 
+</h1></div>
+
+    <section class="multi-line-signature">
+      
+<span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+<span class="name ">drukAf</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="drukAf-param-context"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/widgets/BuildContext-class.html">BuildContext</a></span> <span class="parameter-name">context</span>, </span></li>
+<li><span class="parameter" id="drukAf-param-provider"><span class="type-annotation"><a href="../../state_installatie_provider/InstallatieProvider-class.html">InstallatieProvider</a></span> <span class="parameter-name">provider</span>, </span></li>
+<li><span class="parameter" id="drukAf-param-resultaten"><span class="type-annotation"><a href="../../models_resultaten/AnalyseResultaten-class.html">AnalyseResultaten</a></span> <span class="parameter-name">resultaten</span></span></li>
+</ol>)
+
+      
+
+    </section>
+    
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">static Future&lt;void&gt; drukAf(
+  BuildContext context,
+  InstallatieProvider provider,
+  AnalyseResultaten resultaten,
+) async {
+  final fontBase = pw.Font.ttf(await rootBundle.load(&#39;assets&#47;fonts&#47;Roboto-Regular.ttf&#39;));
+  final fontBold = pw.Font.ttf(await rootBundle.load(&#39;assets&#47;fonts&#47;Roboto-Bold.ttf&#39;));
+  final fontItalic = pw.Font.ttf(await rootBundle.load(&#39;assets&#47;fonts&#47;Roboto-Medium.ttf&#39;));
+
+  final pdf = pw.Document(
+    theme: pw.ThemeData.withFont(
+      base: fontBase,
+      bold: fontBold,
+      italic: fontItalic,
+    ),
+    title: &#39;MijnElektrischeBronnen Rapport&#39;,
+  );
+
+  &#47;&#47; --- Pagina 1: Samenvatting ---
+  pdf.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+      header: (_) =&gt; _paginaHeader(),
+      footer: (ctx) =&gt; _paginaFooter(ctx, resultaten),
+      build: (ctx) =&gt; [
+        _installatieInfoBlok(provider, resultaten.berekendeOp),
+        pw.SizedBox(height: 16),
+        _overzichtSamenvattingBlok(resultaten),
+        pw.SizedBox(height: 16),
+        _scenarioVergelijkingBlok(resultaten),
+        pw.SizedBox(height: 16),
+        _globaleBevindingenBlok(resultaten),
+      ],
+    ),
+  );
+
+  &#47;&#47; --- Per scenario: detail pagina&#39;s ---
+  for (final modus in BedrijfsModus.values) {
+    final s = resultaten.alleScenarios[modus];
+    if (s == null) continue;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+        header: (_) =&gt; _paginaHeader(),
+        footer: (ctx) =&gt; _paginaFooter(ctx, resultaten),
+        build: (ctx) =&gt; [
+          _scenarioTitelBlok(s),
+          pw.SizedBox(height: 12),
+          _scenarioSamenvattingBlok(s),
+          pw.SizedBox(height: 16),
+          if (s.verdelerResultaten.isNotEmpty) ...[
+            _verdelerBlok(s),
+            pw.SizedBox(height: 16),
+          ],
+          _bronnenBlok(s),
+          pw.SizedBox(height: 16),
+          if (s.beveiligingResultaten.isNotEmpty) ...[
+            _selectiviteitBlok(s),
+            pw.SizedBox(height: 16),
+          ],
+          _foutenBlok(s),
+        ],
+      ),
+    );
+  }
+
+  final bytes = await pdf.save();
+  final now = DateTime.now();
+  final bestandsnaam = &#39;mijnelektrischebronnen_rapport_${_datumString(now)}.pdf&#39;;
+
+  final savePath = await FilePicker.platform.saveFile(
+    dialogTitle: &#39;Rapport opslaan&#39;,
+    fileName: bestandsnaam,
+    type: FileType.custom,
+    allowedExtensions: [&#39;pdf&#39;],
+  );
+
+  if (savePath != null) {
+    await File(savePath).writeAsBytes(bytes);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(&#39;Rapport opgeslagen: $savePath&#39;),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../../index.html">mijn_bronnen</a></li>
+    <li><a href="../../services_pdf_rapport/">pdf_rapport</a></li>
+    <li><a href="../../services_pdf_rapport/PdfRapport-class.html">PdfRapport</a></li>
+    <li class="self-crumb">drukAf static method</li>
+</ol>
+
+    <h5>PdfRapport class</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    mijn_bronnen
+      1.0.1+3
+  </span>
+  
+</footer>
+
+
+<script src="../../static-assets/highlight.pack.js?v1"></script>
+<script src="../../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+
