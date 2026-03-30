@@ -30,10 +30,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: copy api documentation
+        run: cp -rf ./doc/api ./site/
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./
+          source: ./site
           destination: ./_site
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -48,4 +50,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
